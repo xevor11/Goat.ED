@@ -311,4 +311,135 @@ app.layout = html.Div(
     ],
 )
 
+# Callbacks
+
+@app.callback(Output("fight_type", "options"), [Input("no_of_rounds", "value")])
+def set_no_of_rounds(no_of_rounds):
+    if no_of_rounds == 5:
+        return [
+            {"label": "Non Title Fight", "value": "Non Title"},
+            {"label": "Title Fight - 5 Rounds", "value": "Title"},
+        ]
+    else:
+        return [{"label": "Non Title Fight", "value": "Non Title"}]
+
+@app.callback(Output("red-fighter", "options"), [Input("weightclass", "value")])
+def set_red_fighter(weightclass):
+
+    return [
+        {"label": i, "value": i}
+        for i in weight_classes[weight_classes["weight_class"] == weightclass][
+            "fighter"
+        ].sort_values()
+    ]
+
+
+@app.callback(Output("red-fighter", "value"), [Input("red-fighter", "options")])
+def set_red_fighter_value(options):
+    if options:
+        return options[7]["value"]
+    return "Select"
+
+
+@app.callback(
+    Output("blue-fighter", "options"),
+    [Input("weightclass", "value"), Input("red-fighter", "value")],
+)
+def set_blue_fighter(weightclass, red_fighter):
+    blue_weight_classes = weight_classes.copy()
+
+    if red_fighter in list(blue_weight_classes["fighter"]):
+        blue_weight_classes = blue_weight_classes.set_index("fighter")
+        blue_weight_classes = blue_weight_classes.drop(index=red_fighter).reset_index()
+
+    return [
+        {"label": i, "value": i}
+        for i in blue_weight_classes[
+            blue_weight_classes["weight_class"] == weightclass
+        ]["fighter"].sort_values()
+    ]
+
+
+@app.callback(Output("blue-fighter", "value"), [Input("blue-fighter", "options")])
+def set_blue_fighter_value(options):
+    if options:
+        return options[9]["value"]
+    return "Select"
+
+
+@app.callback(Output("red-image", "src"), [Input("red-fighter", "value")])
+def set_image_red(fighter1):
+    # return
+    if fighter1:
+        return get_fighter_url(fighter1)
+
+
+@app.callback(Output("blue-image", "src"), [Input("blue-fighter", "value")])
+def set_image_blue(fighter2):
+    # return
+    if fighter2:
+        return get_fighter_url(fighter2)
+
+
+@app.callback(
+    [Output("red-proba", "children"), Output("blue-proba", "children")],
+    [Input("button", "n_clicks")],
+    state=[
+        State("red-fighter", "value"),
+        State("blue-fighter", "value"),
+        State("weightclass", "value"),
+        State("no_of_rounds", "value"),
+        State("fight_type", "value"),
+    ],
+)
+def update_proba(nclicks, red, blue, weightclass, no_of_rounds, fight_type):
+
+    if nclicks:
+        if not red:
+            return ("Select weight class", "Select weight class")
+        if not blue:
+            return ("Select weight class", "Select weight class")
+        if not weightclass:
+            return ("Select weight class", "Select weight class")
+        if not no_of_rounds:
+            return ("Select no_of_rounds", "Select no. of rounds")
+        if not fight_type:
+            return ("Select type", "Select type")
+        if red == blue:
+            return (
+                "Error: Select different fighters",
+                "Error: Select different fighters",
+            )
+
+        df = fighter_df.copy()
+
+        title_bout = {"Non Title": False, "Title": True}
+
+        cols_dict = {
+            df_weight_classes[k]: (1 if weightclass == k else 0)
+            for k in df_weight_classes.keys()
+        }
+        cols_dict.update(
+            {"title_bout": title_bout[fight_type], "no_of_rounds": no_of_rounds}
+        )
+        extra_cols = pd.DataFrame([list(cols_dict.values())], columns=cols_dict.keys())
+        df["age"] = df["DOB"].apply(get_age)
+        df.drop(columns=["DOB"], inplace=True)
+        r = df.loc[[red]].add_prefix("R_").reset_index(drop=True)
+        b = df.loc[[blue]].add_prefix("B_").reset_index(drop=True)
+        final = pd.concat([r, b, extra_cols], axis=1)[cols]
+        [blue_proba, red_proba] = model.predict_proba(
+            np.array(normalize(final, scaler))
+        )[0]
+
+        return (f"{red_proba*100:.2f}" + "%", f"{blue_proba*100:.2f}" + "%")
+
+    else:
+        return ("Click Predict", "Click Predict")
+
+
+app.title = "UFC Predictions"
+
+if __name__ == "__main__":
+    app.run_server(host="0.0.0.0", debug=True)
 
