@@ -215,3 +215,40 @@ class FighterDetailProcessor:
 
         fighter_blue = fighter_blue.rename(rename_columns, axis="columns")
         return fighter_blue
+    
+        @staticmethod
+    def _get_result_stats(result_list):
+        result_list.reverse()  # To get it in ascending order
+        current_win_streak = 0
+        current_lose_streak = 0
+        longest_win_streak = 0
+        wins = 0
+        losses = 0
+        draw = 0
+        for result in result_list:
+
+            if result == "hero":
+                wins += 1
+                current_win_streak += 1
+                current_lose_streak = 0
+                if longest_win_streak < current_win_streak:
+                    longest_win_streak += 1
+
+            elif result == "opp":
+                losses += 1
+                current_win_streak = 0
+                current_lose_streak += 1
+
+            elif result == "draw":
+                draw += 1
+                current_lose_streak = 0
+                current_win_streak = 0
+
+        return (
+            current_win_streak,
+            current_lose_streak,
+            longest_win_streak,
+            wins,
+            losses,
+            draw,
+        )
