@@ -31,3 +31,142 @@ class FighterDetailProcessor:
         blue_fighters = self.fights["B_fighter"].value_counts().index
 
         return list(set(red_fighters) | set(blue_fighters))
+    
+    def _calculate_fighter_data(self):
+
+        temp_blue_frame = pd.DataFrame()
+        temp_red_frame = pd.DataFrame()
+
+        fighters = self._get_fighters()
+        self.red = self.fights.groupby("R_fighter")
+        self.blue = self.fights.groupby("B_fighter")
+
+        result_stats = [
+            "current_win_streak",
+            "current_lose_streak",
+            "longest_win_streak",
+            "wins",
+            "losses",
+            "draw",
+        ]
+
+        win_by_columns = [
+            "win_by_Decision - Majority",
+            "win_by_Decision - Split",
+            "win_by_Decision - Unanimous",
+            "win_by_KO/TKO",
+            "win_by_Submission",
+            "win_by_TKO - Doctor's Stoppage",
+        ]
+
+        Numerical_columns = [
+            "hero_KD",
+            "opp_KD",
+            "hero_SIG_STR_pct",
+            "opp_SIG_STR_pct",
+            "hero_TD_pct",
+            "opp_TD_pct",
+            "hero_SUB_ATT",
+            "opp_SUB_ATT",
+            "hero_REV",
+            "opp_REV",
+            "hero_SIG_STR._att",
+            "hero_SIG_STR._landed",
+            "opp_SIG_STR._att",
+            "opp_SIG_STR._landed",
+            "hero_TOTAL_STR._att",
+            "hero_TOTAL_STR._landed",
+            "opp_TOTAL_STR._att",
+            "opp_TOTAL_STR._landed",
+            "hero_TD_att",
+            "hero_TD_landed",
+            "opp_TD_att",
+            "opp_TD_landed",
+            "hero_HEAD_att",
+            "hero_HEAD_landed",
+            "opp_HEAD_att",
+            "opp_HEAD_landed",
+            "hero_BODY_att",
+            "hero_BODY_landed",
+            "opp_BODY_att",
+            "opp_BODY_landed",
+            "hero_LEG_att",
+            "hero_LEG_landed",
+            "opp_LEG_att",
+            "opp_LEG_landed",
+            "hero_DISTANCE_att",
+            "hero_DISTANCE_landed",
+            "opp_DISTANCE_att",
+            "opp_DISTANCE_landed",
+            "hero_CLINCH_att",
+            "hero_CLINCH_landed",
+            "opp_CLINCH_att",
+            "opp_CLINCH_landed",
+            "hero_GROUND_att",
+            "hero_GROUND_landed",
+            "opp_GROUND_att",
+            "opp_GROUND_landed",
+            "hero_CTRL_time(seconds)",
+            "opp_CTRL_time(seconds)",
+            "total_time_fought(seconds)",
+        ]
+
+        print("Creating Fighter Level Features")
+        for fighter_name in tqdm(fighters):
+            fighter_red = self._get_fighter_red(fighter_name)
+            fighter_blue = self._get_fighter_blue(fighter_name)
+            fighter_index = None
+
+            if fighter_red is None:
+                fighter = fighter_blue
+                fighter_index = "blue"
+            elif fighter_blue is None:
+                fighter = fighter_red
+                fighter_index = "red"
+            else:
+                fighter = pd.concat([fighter_red, fighter_blue]).sort_index()
+
+            fighter["Winner"] = fighter["Winner"].apply(
+                lambda X: "hero" if X == fighter_name else "opp"
+            )
+
+            for i, index in enumerate(fighter.index):
+
+                fighter_slice = fighter[(i + 1) :].sort_index(ascending=False)
+                s = (
+                    fighter_slice[Numerical_columns]
+                    .ewm(span=3, adjust=False)
+                    .mean()
+                    .tail(1)
+                )
+                if len(s) != 0:
+                    pass
+                else:
+                    s.loc[len(s)] = [np.NaN for _ in s.columns]
+                s["total_rounds_fought"] = fighter_slice["last_round"].sum()
+                s["total_title_bouts"] = fighter_slice[
+                    fighter_slice["title_bout"] == True
+                ]["title_bout"].count()
+                s["hero_fighter"] = fighter_name
+                results = self._get_result_stats(list(fighter_slice["Winner"]))
+                for result_stat, result in zip(result_stats, results):
+                    s[result_stat] = result
+                win_by_results = fighter_slice[fighter_slice["Winner"] == "hero"][
+                    win_by_columns
+                ].sum()
+                for win_by_column, win_by_result in zip(win_by_columns, win_by_results):
+                    s[win_by_column] = win_by_result
+
+                s.index = [index]
+
+                if fighter_index is None:
+                    if index in fighter_blue.index:
+                        temp_blue_frame = temp_blue_frame.append(s)
+                    elif index in fighter_red.index:
+                        temp_red_frame = temp_red_frame.append(s)
+                elif fighter_index == "blue":
+                    temp_blue_frame = temp_blue_frame.append(s)
+                elif fighter_index == "red":
+                    temp_red_frame = temp_red_frame.append(s)
+
+        return temp_red_frame, temp_blue_frame
