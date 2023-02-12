@@ -177,3 +177,41 @@ class FighterDetailProcessor:
         Replaces 'pattern' in 'string' with 'sub' if 'pattern' starts 'string'.
         """
         return re.sub("^%s" % pattern, sub, string)
+    
+    def _get_fighter_red(self, fighter_name):
+
+        try:
+            fighter_red = self.red.get_group(fighter_name)
+        except:
+            return None
+
+        rename_columns = {}
+        for column in fighter_red.columns:
+
+            if re.search("^R_", column) is not None:
+                rename_columns[column] = self.lreplace("R_", "hero_", column)
+
+            elif re.search("^B_", column) is not None:
+                rename_columns[column] = self.lreplace("B_", "opp_", column)
+
+        fighter_red = fighter_red.rename(rename_columns, axis="columns")
+        return fighter_red
+
+    def _get_fighter_blue(self, fighter_name):
+
+        try:
+            fighter_blue = self.blue.get_group(fighter_name)
+        except:
+            return None
+
+        rename_columns = {}
+        for column in fighter_blue.columns:
+
+            if re.search("^B_", column) is not None:
+                rename_columns[column] = self.lreplace("B_", "hero_", column)
+
+            elif re.search("^R_", column) is not None:
+                rename_columns[column] = self.lreplace("R_", "opp_", column)
+
+        fighter_blue = fighter_blue.rename(rename_columns, axis="columns")
+        return fighter_blue
