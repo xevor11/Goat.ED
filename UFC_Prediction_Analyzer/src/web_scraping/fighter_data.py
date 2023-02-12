@@ -170,3 +170,10 @@ class FighterDetailProcessor:
                     temp_red_frame = temp_red_frame.append(s)
 
         return temp_red_frame, temp_blue_frame
+    
+    @staticmethod
+    def lreplace(pattern, sub, string):
+        """
+        Replaces 'pattern' in 'string' with 'sub' if 'pattern' starts 'string'.
+        """
+        return re.sub("^%s" % pattern, sub, string)
