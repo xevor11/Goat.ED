@@ -66,3 +66,39 @@ def get_age(X):
         age = math.floor((today - DOB).days / 365.25)
         return age
 
+def get_fighter_url(fighter):
+    buildargs = {
+        "serviceName": "customsearch",
+        "version": "v1",
+        "developerKey": GOOGLE_API_DEVELOPER_KEY,
+    }
+
+    cseargs = {
+        "q": fighter + " " + "Official Fighter Profile",
+        "cx": CSE_ID,
+        "num": 1,
+        "imgSize": "large",
+        "searchType": "image",
+        "fileType": "png",
+        "safe": "off",
+    }
+
+    cseargs2 = {
+        "q": "Not found",
+        "cx": "015743272077172593992:pfwmvxoiylc",
+        "num": 1,
+        "imgSize": "large",
+        "searchType": "image",
+        "fileType": "png",
+        "safe": "off",
+    }
+
+    results = search_google.api.results(buildargs, cseargs)
+    url = results.links[0]
+
+    if url:
+        return url
+    else:
+        return (
+            "https://pngimage.net/wp-content/uploads/2018/06/image-not-found-png-9.png"
+        )
