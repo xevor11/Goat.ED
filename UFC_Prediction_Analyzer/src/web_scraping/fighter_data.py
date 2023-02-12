@@ -252,3 +252,76 @@ class FighterDetailProcessor:
             losses,
             draw,
         )
+        def _convert_height_reach_to_cms(self):
+        def convert_to_cms(X):
+
+            if X is np.NaN:
+                return X
+
+            elif len(X.split("'")) == 2:
+                feet = float(X.split("'")[0])
+                inches = int(X.split("'")[1].replace(" ", "").replace('"', ""))
+                return (feet * 30.48) + (inches * 2.54)
+
+            else:
+                return float(X.replace('"', "")) * 2.54
+
+        self.fighter_details["Height_cms"] = self.fighter_details["Height"].apply(
+            convert_to_cms
+        )
+        self.fighter_details["Reach_cms"] = self.fighter_details["Reach"].apply(
+            convert_to_cms
+        )
+
+    def _convert_weight_to_pounds(self):
+        self.fighter_details["Weight_lbs"] = self.fighter_details["Weight"].apply(
+            lambda X: float(X.replace(" lbs.", "")) if X is not np.NaN else X
+        )
+        self.fighter_details.drop(["Height", "Weight", "Reach"], axis=1, inplace=True)
+
+    def _merge_frames(self):
+
+        self.fighter_details.reset_index(inplace=True)
+        self.temp_red_frame.reset_index(inplace=True)
+        self.temp_blue_frame.reset_index(inplace=True)
+
+        self.temp_blue_frame = self.temp_blue_frame.merge(
+            self.fighter_details,
+            left_on="hero_fighter",
+            right_on="fighter_name",
+            how="left",
+        )
+        self.temp_blue_frame.set_index("index", inplace=True)
+
+        self.temp_red_frame = self.temp_red_frame.merge(
+            self.fighter_details,
+            left_on="hero_fighter",
+            right_on="fighter_name",
+            how="left",
+        )
+        self.temp_red_frame.set_index("index", inplace=True)
+
+        self.temp_blue_frame.drop("fighter_name", axis=1, inplace=True)
+        self.temp_red_frame.drop("fighter_name", axis=1, inplace=True)
+
+        blue_frame = self.temp_blue_frame.add_prefix("B_")
+        red_frame = self.temp_red_frame.add_prefix("R_")
+
+        return blue_frame.join(red_frame, how="outer")
+
+    def _rename_columns(self):
+
+        rename_cols = {}
+
+        for col in self.frame.columns:
+            if "hero" in col:
+                rename_cols[col] = col.replace("_hero_", "_avg_").replace(".", "")
+            if "opp" in col:
+                rename_cols[col] = col.replace("_opp_", "_avg_opp_").replace(".", "")
+            if "win_by" in col:
+                rename_cols[col] = (
+                    col.replace(" ", "").replace("-", "_").replace("'s", "_")
+                )
+
+        self.frame.rename(rename_cols, axis="columns", inplace=True)
+        self.frame.drop(["R_avg_fighter", "B_avg_fighter"], axis=1, inplace=True)
