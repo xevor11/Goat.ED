@@ -46,3 +46,23 @@ df_weight_classes = {
     "Catch Weight": "weight_class_CatchWeight",
     "Open Weight": "weight_class_OpenWeight",
 }
+
+def normalize(df: pd.DataFrame, scaler) -> pd.DataFrame:
+    df_num = df.select_dtypes(include=[np.float, np.int])
+    df[list(df_num.columns)] = scaler.transform(df[list(df_num.columns)])
+    return df
+
+
+def get_age(X):
+
+    median_age = 29
+
+    DOB = pd.to_datetime(X)
+    today = pd.to_datetime("today")
+
+    if pd.isnull(DOB):
+        return median_age
+    else:
+        age = math.floor((today - DOB).days / 365.25)
+        return age
+
